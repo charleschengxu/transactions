@@ -1,0 +1,122 @@
+Test case 1. 
+Result of sending Burst(3, 2, 1) to one actor and Burst(3, 2, -1) to the other (concurrently):
+application actor 0 carries out transaction 0:  increments 1 on the values corresponding to key 0 and key 1 three times 
+application actor 1 carries out transaction 1: decrease 1 on the values corresponding to key 0 and key 1 three times
+We expect that at the end of the execution, both key 0 and key 1 should have the same value as stored initially, in this case 0.
+
+[info] Running transaction.TestApplication 
+[INFO] [11/06/2016 19:35:52.829] [transactionService-akka.actor.default-dispatcher-5] [akka://transactionService/user/ApplicationActor0] app actor 0 acquired all locks!
+client 0 read (0, 0)
+client 0 write (0, 1)
+client 0 read (1, 0)
+client 0 write (1, 1)
+client 0 read (0, 1)
+client 0 write (0, 2)
+client 0 read (1, 1)
+client 0 write (1, 2)
+client 0 read (0, 2)
+client 0 write (0, 3)
+client 0 read (1, 2)
+client 0 write (1, 3)
+[INFO] [11/06/2016 19:35:52.861] [transactionService-akka.actor.default-dispatcher-2] [akka://transactionService/user/StoreActor1] store server attempting tx 0
+[INFO] [11/06/2016 19:35:52.866] [transactionService-akka.actor.default-dispatcher-6] [akka://transactionService/user/StoreActor0] store server attempting tx 0
+count is 2
+[INFO] [11/06/2016 19:35:52.873] [transactionService-akka.actor.default-dispatcher-6] [akka://transactionService/user/StoreActor0] store server committing tx 0
+[INFO] [11/06/2016 19:35:52.873] [transactionService-akka.actor.default-dispatcher-2] [akka://transactionService/user/StoreActor1] store server committing tx 0
+[INFO] [11/06/2016 19:35:52.905] [transactionService-akka.actor.default-dispatcher-5] [akka://transactionService/user/ApplicationActor0] app actor 0 committed successfully
+[INFO] [11/06/2016 19:35:52.906] [transactionService-akka.actor.default-dispatcher-4] [akka://transactionService/user/ApplicationActor1] app actor 1 acquired all locks!
+client 1 read (0, 3)
+client 1 write (0, 2)
+client 1 read (1, 3)
+client 1 write (1, 2)
+client 1 read (0, 2)
+client 1 write (0, 1)
+client 1 read (1, 2)
+client 1 write (1, 1)
+client 1 read (0, 1)
+client 1 write (0, 0)
+client 1 read (1, 1)
+client 1 write (1, 0)
+[INFO] [11/06/2016 19:35:52.911] [transactionService-akka.actor.default-dispatcher-6] [akka://transactionService/user/StoreActor1] store server attempting tx 1
+[INFO] [11/06/2016 19:35:52.912] [transactionService-akka.actor.default-dispatcher-6] [akka://transactionService/user/StoreActor0] store server attempting tx 1
+count is 2
+[INFO] [11/06/2016 19:35:52.916] [transactionService-akka.actor.default-dispatcher-9] [akka://transactionService/user/StoreActor1] store server committing tx 1
+[INFO] [11/06/2016 19:35:52.919] [transactionService-akka.actor.default-dispatcher-2] [akka://transactionService/user/StoreActor0] store server committing tx 1
+[INFO] [11/06/2016 19:35:52.920] [transactionService-akka.actor.default-dispatcher-4] [akka://transactionService/user/ApplicationActor1] app actor 1 committed successfully
+Done bursting, resulting storage entries: 
+0 -> 0
+1 -> 0
+[success] Total time: 6 s, completed Nov 6, 2016 7:35:54 PM
+
+** From the logs, we can see that application 0 acquired locks for key 0 and key 1, and then performs three read-write's on those values.
+It then asks for votes from storage servers that store key 0 and key 1 for votes. Count is 2 indicates that it has received unanimous votes,
+and therefore sends commit messages to those servers, and logs the result (success). Application actor 1 then acquires all the locks,
+after application actor 0 is done and release all the locks. The values read for keys 0 and 1 are 3, reflecting the effect of the previous transaction.
+Same process as before, it successfully commits the transaction. 
+And in the end, the values stored in the servers (obtained by Get messages) for both keys are 0, as expected. 
+
+
+-----------------------------------------------------------------------------------------------
+Test case 2.
+Result of partitioning between client0 and kvstore0: (i.e. kvStore0 ignoring all msgs from client0):
+We expect that the final values for key 0 and key 1 to be -3, since only one transaction is successfully committed.
+
+[info] Running transaction.TestApplication 
+[INFO] [11/06/2016 20:24:38.006] [transactionService-akka.actor.default-dispatcher-9] [akka://transactionService/user/ApplicationActor1] app actor 1 acquired all locks!
+client 1 read (0, 0)
+client 1 write (0, -1)
+client 1 read (1, 0)
+client 1 write (1, -1)
+client 1 read (0, -1)
+client 1 write (0, -2)
+client 1 read (1, -1)
+client 1 write (1, -2)
+client 1 read (0, -2)
+client 1 write (0, -3)
+client 1 read (1, -2)
+client 1 write (1, -3)
+[INFO] [11/06/2016 20:24:38.028] [transactionService-akka.actor.default-dispatcher-7] [akka://transactionService/user/StoreActor0] store server attempting tx 1
+[INFO] [11/06/2016 20:24:38.038] [transactionService-akka.actor.default-dispatcher-7] [akka://transactionService/user/StoreActor1] store server attempting tx 1
+count is 2
+[INFO] [11/06/2016 20:24:38.050] [transactionService-akka.actor.default-dispatcher-3] [akka://transactionService/user/StoreActor1] store server committing tx 1
+[INFO] [11/06/2016 20:24:38.050] [transactionService-akka.actor.default-dispatcher-4] [akka://transactionService/user/StoreActor0] store server committing tx 1
+[INFO] [11/06/2016 20:24:38.064] [transactionService-akka.actor.default-dispatcher-2] [akka://transactionService/user/ApplicationActor0] app actor 0 acquired all locks!
+client 0 read (0, -3)
+client 0 write (0, -2)
+client 0 read (1, -3)
+[INFO] [11/06/2016 20:24:38.081] [transactionService-akka.actor.default-dispatcher-9] [akka://transactionService/user/ApplicationActor1] app actor 1 committed successfully
+client 0 write (1, -2)
+client 0 read (0, -2)
+client 0 write (0, -1)
+client 0 read (1, -2)
+client 0 write (1, -1)
+client 0 read (0, -1)
+client 0 write (0, 0)
+client 0 read (1, -1)
+client 0 write (1, 0)
+[INFO] [11/06/2016 20:24:38.088] [transactionService-akka.actor.default-dispatcher-6] [akka://transactionService/user/StoreActor0] store server attempting tx 0
+[INFO] [11/06/2016 20:24:48.096] [transactionService-akka.actor.default-dispatcher-9] [akka://transactionService/user/StoreActor1] store server aborting tx 0
+[INFO] [11/06/2016 20:24:48.096] [transactionService-akka.actor.default-dispatcher-2] [akka://transactionService/user/ApplicationActor0] app actor 0 failed to commit
+Done bursting, resulting storage entries: 
+0 -> -3
+1 -> -3
+[success] Total time: 17 s, completed Nov 6, 2016 8:24:49 PM
+
+** From the logs, we can see that application actor 1 acquires all the locks and successfully commits the transaction, because there's
+no partitioning between itself and any store servers. However, application 0 is partitioned from the network, therefore during two phase commit,
+it timesout waiting on the response/vote from the server, therefore force aborting the transaction by sending Abort messages to all other servers
+with pending actions, which then removes the entry for that transaction from their caches.
+The final result read from the storage servers is -3 for both keys, as expected.
+
+---------------------------------------------------------------------------------------------
+Test case 3.
+Result of 10 application actors concurrently start 100 transfers between randomly chosen bank accounts. 
+(i.e. testRandomTransfers(10, 10, 100), which sends RandomTransfer(10, 100) to all 10 actors) 
+Initially all the 10 bank accounts have value 100, so initial sum = 1000. We expect that after all the transfers finish, the sum of all bank accounts should still be 1000.
+The output for final result is shown below- the loggings of read/write values are omitted.
+
+[info] Running transaction.TestApplication 
+starting random transfers, initial sum: 1000
+transactions done. final sum is 1000
+[success] Total time: 35 s, completed Nov 7, 2016 12:58:54 AM
+
